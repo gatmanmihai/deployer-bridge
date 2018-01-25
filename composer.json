@@ -1,0 +1,28 @@
+{
+    "name": "youmesoft/deployer-bridge",
+    "type": "symfony-bridge",
+    "description": "Symfony Deployer Bridge",
+    "keywords": [],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Gatman Mihai",
+            "email": "gatman.mihai@gmail.com"
+        }
+    ],
+    "suggest": {
+        "ext-zip": "Zip support is required when using bin/simple-phpunit"
+    },
+    "autoload": {
+        "psr-4": { "Symfony\\Bridge\\Deployer\\": "" }
+    },
+    "bin": [
+        "bin/simple-deploy"
+    ],
+    "minimum-stability": "dev",
+    "extra": {
+        "branch-alias": {
+            "dev-master": "1.0-dev"
+        }
+    }
+}
