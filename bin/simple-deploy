@@ -1,0 +1,76 @@
+#!/usr/bin/env php
+<?php
+
+$DEPLOYER_VERSION = getenv('SYMFONY_DEPLOYER_VERSION') ?: '6.0.5';
+
+error_reporting(-1);
+
+$root = __DIR__;
+while (!file_exists($root.'/composer.json')) {
+    if ($root === dirname($root)) {
+        break;
+    }
+    $root = dirname($root);
+}
+
+$oldPwd = getcwd();
+$DEPLOYER_DIR = getenv('SYMFONY_DEPLOYER_DIR') ?: ($root.'/vendor/bin/.deployer');
+$PHP = defined('PHP_BINARY') ? PHP_BINARY : 'php';
+$PHP = escapeshellarg($PHP);
+if ('phpdbg' === PHP_SAPI) {
+    $PHP .= ' -qrr';
+}
+
+$COMPOSER = file_exists($COMPOSER = $oldPwd.'/composer.phar') || ($COMPOSER = rtrim('\\' === DIRECTORY_SEPARATOR ? preg_replace('/[\r\n].*/', '', `where.exe composer.phar`) : `which composer.phar`))
+    ? $PHP.' '.escapeshellarg($COMPOSER)
+    : 'composer';
+
+if (!file_exists("$DEPLOYER_DIR/deployer-$DEPLOYER_VERSION/bin/dep") || md5_file(__FILE__) !== @file_get_contents("$DEPLOYER_DIR/.$DEPLOYER_VERSION.md5")) {
+    @mkdir($DEPLOYER_DIR, 0777, true);
+    chdir($DEPLOYER_DIR);
+    if (file_exists("deployer-$DEPLOYER_VERSION")) {
+        passthru(sprintf('\\' === DIRECTORY_SEPARATOR ? '(del /S /F /Q %s & rmdir %1$s) >nul': 'rm -rf %s', "deployer-$DEPLOYER_VERSION"));
+    }
+    if (extension_loaded('openssl') && ini_get('allow_url_fopen') && !isset($_SERVER['http_proxy']) && !isset($_SERVER['https_proxy'])) {
+        $remoteZip = "https://github.com/deployphp/deployer/archive/v$DEPLOYER_VERSION.zip";
+        $remoteZipStream = @fopen($remoteZip, 'rb');
+        if (!$remoteZipStream) {
+            throw new \RuntimeException("Could not find $remoteZip");
+        }
+        stream_copy_to_stream($remoteZipStream, fopen("$DEPLOYER_VERSION.zip", 'wb'));
+    } else {
+        @unlink("$DEPLOYER_VERSION.zip");
+        passthru("wget https://github.com/deployphp/deployer/archive/v$DEPLOYER_VERSION.zip");
+    }
+    if (!class_exists('ZipArchive')) {
+        throw new \Exception('simple-deploy requires the "zip" PHP extension to be installed and enabled in order to uncompress the downloaded Deployer packages.');
+    }
+    $zip = new ZipArchive();
+    $zip->open("$DEPLOYER_VERSION.zip");
+    $zip->extractTo(getcwd());
+    $zip->close();
+    chdir("deployer-$DEPLOYER_VERSION");
+
+    $prevRoot = getenv('COMPOSER_ROOT_VERSION');
+    putenv("COMPOSER_ROOT_VERSION=$DEPLOYER_VERSION.99");
+    $exit = proc_close(proc_open("$COMPOSER install --no-dev --prefer-dist --no-suggest --no-progress --ansi", array(), $p, getcwd(), null, array('bypass_shell' => true)));
+    putenv('COMPOSER_ROOT_VERSION'.(false !== $prevRoot ? '='.$prevRoot : ''));
+    if ($exit) {
+        exit($exit);
+    }
+
+    chdir('..');
+    file_put_contents(".$DEPLOYER_VERSION.md5", md5_file(__FILE__));
+    chdir($oldPwd);
+
+}
+
+global $argv, $argc;
+$argv = isset($_SERVER['argv']) ? $_SERVER['argv'] : array();
+$argc = isset($_SERVER['argc']) ? $_SERVER['argc'] : 0;
+
+$_SERVER['argv'] = $argv;
+$_SERVER['argc'] = ++$argc;
+include "$DEPLOYER_DIR/deployer-$DEPLOYER_VERSION/bin/dep";
+
+exit($exit);
