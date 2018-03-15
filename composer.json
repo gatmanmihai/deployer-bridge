@@ -1,5 +1,5 @@
 {
-    "name": "youmesoft/deployer-bridge",
+    "name": "gatman/deployer-bridge",
     "type": "symfony-bridge",
     "description": "Symfony Deployer Bridge",
     "keywords": [],
